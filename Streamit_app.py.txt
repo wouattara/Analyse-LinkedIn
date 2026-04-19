@@ -1,0 +1,147 @@
+Streamit_app.py
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+import pandas as pd
+
+# 1. CONFIGURATION DE LA PAGE
+st.set_page_config(layout="wide", page_title="LinkedIn Job Analysis Dashboard")
+
+# 2. SESSION SNOWFLAKE
+session = get_active_session()
+
+# --- SIDEBAR : TRADUCTEUR D'IDENTIFIANTS ---
+st.sidebar.header("📖 Traducteur d'Identifiants")
+st.sidebar.write("Saisissez un ID pour obtenir les informations réelles.")
+
+# Dictionnaire Secteurs
+st.sidebar.subheader("🏢 Secteur / Industry")
+id_secteur_input = st.sidebar.text_input("ID du secteur (ex: 96) :", key="search_secteur")
+if id_secteur_input:
+    try:
+        res_ind = session.sql(f"""
+            SELECT DISTINCT v:industry::STRING as NOM 
+            FROM LINKEDIN.JOBS_OFFER.COMPANY_INDUSTRIES_JSON_RAW
+            WHERE v:industry_id::STRING = '{id_secteur_input}'
+            LIMIT 1
+        """).to_pandas()
+        if not res_ind.empty:
+            st.sidebar.success(f"Secteur : **{res_ind['NOM'].iloc[0]}**")
+        else:
+            st.sidebar.warning("Aucun secteur trouvé.")
+    except:
+        st.sidebar.error("Erreur table Industries.")
+
+st.sidebar.divider()
+
+# Dictionnaire Entreprises
+st.sidebar.subheader("🏭 Entreprise")
+id_comp_input = st.sidebar.text_input("ID de l'entreprise :", key="search_entreprise")
+if id_comp_input:
+    try:
+        res_comp = session.sql(f"""
+            SELECT DISTINCT v:name::STRING as NOM 
+            FROM LINKEDIN.JOBS_OFFER.COMPANIES_JSON_RAW
+            WHERE v:company_id::STRING = '{id_comp_input}'
+            LIMIT 1
+        """).to_pandas()
+        if not res_comp.empty:
+            st.sidebar.success(f"Entreprise : **{res_comp['NOM'].iloc[0]}**")
+        else:
+            st.sidebar.warning("Aucune entreprise trouvée.")
+    except:
+        st.sidebar.error("Erreur table Entreprises.")
+
+
+# --- CORPS DU DASHBOARD ---
+st.title("📊 LinkedIn Job Market Analysis")
+st.write("Analyse des opportunités et des structures du marché de l'emploi.")
+
+# --- SECTION 1 : INDUSTRIES & RÉMUNÉRATIONS ---
+st.header("🏢 Analyse des Secteurs & Salaires")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Top 10 Salaires Moyens par ID Secteur")
+    q1 = """
+    SELECT 
+        CAST(ji.industry_id AS STRING) as ID_SECTEUR, 
+        ROUND(AVG(j.max_salary), 0) as SALAIRE_MOYEN
+    FROM LINKEDIN.JOBS_OFFER.JOB_POSTINGS j
+    JOIN LINKEDIN.JOBS_OFFER.JOB_INDUSTRIES ji ON j.job_id = ji.job_id
+    WHERE j.max_salary > 0 
+    GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+    """
+    df1 = session.sql(q1).to_pandas()
+    st.bar_chart(df1, x="ID_SECTEUR", y="SALAIRE_MOYEN")
+
+with col2:
+    st.subheader("Volume d'offres par ID Secteur")
+    q2 = """
+    SELECT 
+        CAST(industry_id AS STRING) as ID_SECTEUR, 
+        COUNT(*) as NB_OFFRES
+    FROM LINKEDIN.JOBS_OFFER.JOB_INDUSTRIES
+    GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+    """
+    df2 = session.sql(q2).to_pandas()
+    st.bar_chart(df2, x="ID_SECTEUR", y="NB_OFFRES")
+
+st.divider()
+
+# --- SECTION 2 : ENTREPRISES & TITRES ---
+st.header("📉 Répartitions des Entreprises")
+col3, col4 = st.columns(2)
+
+with col3:
+    st.subheader("Répartition par Taille d'Entreprise")
+    q3 = """
+    SELECT 
+        IFNULL(c.company_size, 'Non spécifié') as TAILLE, 
+        COUNT(j.job_id) as TOTAL
+    FROM LINKEDIN.JOBS_OFFER.JOB_POSTINGS j
+    INNER JOIN LINKEDIN.JOBS_OFFER.COMPANIES c 
+        ON TRY_TO_NUMBER(j.company_name) = c.company_id
+    WHERE c.company_size IS NOT NULL AND c.company_size != '' AND c.company_size != '0'
+    GROUP BY 1 ORDER BY TOTAL DESC
+    """
+    df3 = session.sql(q3).to_pandas()
+    st.bar_chart(df3, x="TAILLE", y="TOTAL")
+
+with col4:
+    st.subheader("Top 10 Titres les plus publiés")
+    q4 = """
+    SELECT title as TITRE, COUNT(*) as NB
+    FROM LINKEDIN.JOBS_OFFER.JOB_POSTINGS
+    GROUP BY 1 ORDER BY NB DESC LIMIT 10
+    """
+    df4 = session.sql(q4).to_pandas()
+    st.bar_chart(df4, x="TITRE", y="NB")
+
+st.divider()
+
+# --- SECTION 3 : TYPOLOGIE DES CONTRATS (TRADUIT) ---
+st.header("🕒 Typologie des Contrats")
+q5 = """
+SELECT 
+    CASE 
+        WHEN formatted_work_type = 'Full-time' THEN 'Temps Plein'
+        WHEN formatted_work_type = 'Part-time' THEN 'Temps Partiel'
+        WHEN formatted_work_type = 'Contract' THEN 'Contrat / Freelance'
+        WHEN formatted_work_type = 'Internship' THEN 'Stage'
+        ELSE 'Autre'
+    END as TYPE_FR, 
+    COUNT(*) as NB
+FROM LINKEDIN.JOBS_OFFER.JOB_POSTINGS 
+WHERE formatted_work_type IS NOT NULL
+GROUP BY 1 ORDER BY NB DESC
+"""
+df5 = session.sql(q5).to_pandas()
+
+col_left, col_right = st.columns([1, 2])
+with col_left:
+    st.write("Détails des volumes par contrat :")
+    st.dataframe(df5, use_container_width=True, hide_index=True)
+with col_right:
+    st.bar_chart(df5, x="TYPE_FR", y="NB")
+
+st.success("✅ Dashboard final prêt pour présentation.")

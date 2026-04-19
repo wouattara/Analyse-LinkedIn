@@ -1,0 +1,125 @@
+LinkedIn.sql
+-- ==========================================================
+-- FICHIER 1 : CONFIGURATION ET CHARGEMENT (ETL)
+-- ==========================================================
+
+-- 1. ENVIRONNEMENT
+CREATE DATABASE IF NOT EXISTS LINKEDIN;
+CREATE SCHEMA IF NOT EXISTS JOBS_OFFER;
+USE DATABASE LINKEDIN;
+USE SCHEMA JOBS_OFFER;
+
+-- 2. FORMATS DE FICHIERS
+-- Format CSV robuste pour les fichiers .csv
+CREATE OR REPLACE FILE FORMAT csv_format
+  TYPE = 'CSV'
+  FIELD_DELIMITER = ','
+  SKIP_HEADER = 1
+  FIELD_OPTIONALLY_ENCLOSED_BY = '\042' -- Gère les guillemets doubles "
+  NULL_IF = ('', 'NULL');
+
+-- Format JSON pour les fichiers .json
+CREATE OR REPLACE FILE FORMAT json_format
+  TYPE = 'JSON'
+  STRIP_OUTER_ARRAY = TRUE;
+
+-- 3. STAGE EXTERNE (S3)
+CREATE OR REPLACE STAGE linkedin_stage 
+URL = 's3://snowflake-lab-bucket/';
+
+-- ==========================================================
+-- 4. TABLES CSV (RAW -> FINAL)
+-- ==========================================================
+
+--- TABLE: JOB_POSTINGS ---
+CREATE OR REPLACE TABLE JOB_POSTINGS_RAW (
+    job_id STRING, company_name STRING, title STRING, description STRING, 
+    max_salary STRING, med_salary STRING, min_salary STRING, pay_period STRING, 
+    formatted_work_type STRING, location STRING, applies STRING, 
+    original_listed_time STRING, remote_allowed STRING, views STRING, 
+    job_posting_url STRING, application_url STRING, application_type STRING, 
+    expiry STRING, closed_time STRING, formatted_experience_level STRING, 
+    skills_desc STRING, listed_time STRING, posting_domain STRING, 
+    sponsored STRING, work_type STRING, currency STRING, compensation_type STRING
+);
+
+COPY INTO JOB_POSTINGS_RAW FROM @linkedin_stage/job_postings.csv FILE_FORMAT = (FORMAT_NAME = 'csv_format');
+
+CREATE OR REPLACE TABLE JOB_POSTINGS AS
+SELECT 
+    job_id, company_name, title, description,
+    TRY_TO_DOUBLE(max_salary) AS max_salary,
+    TRY_TO_NUMBER(applies) AS applies,
+    TO_TIMESTAMP_NTZ(TRY_TO_NUMBER(original_listed_time) / 1000) AS original_listed_time,
+    CASE WHEN LOWER(remote_allowed) IN ('1', 'true') THEN TRUE ELSE FALSE END AS remote_allowed,
+    TO_TIMESTAMP_NTZ(TRY_TO_NUMBER(expiry) / 1000) AS expiry,
+    TO_TIMESTAMP_NTZ(TRY_TO_NUMBER(listed_time) / 1000) AS listed_time,
+    CASE WHEN LOWER(sponsored) IN ('1', 'true') THEN TRUE ELSE FALSE END AS sponsored,
+    formatted_work_type, currency, work_type
+FROM JOB_POSTINGS_RAW;
+
+--- TABLE: JOB_SKILLS ---
+CREATE OR REPLACE TABLE JOB_SKILLS_RAW (job_id STRING, skill_abr STRING);
+COPY INTO JOB_SKILLS_RAW FROM @linkedin_stage/job_skills.csv FILE_FORMAT = (FORMAT_NAME = 'csv_format');
+
+CREATE OR REPLACE TABLE JOB_SKILLS AS 
+SELECT TRY_TO_NUMBER(job_id) AS job_id, skill_abr FROM JOB_SKILLS_RAW;
+
+--- TABLE: BENEFITS ---
+CREATE OR REPLACE TABLE BENEFITS_RAW (job_id STRING, type STRING, inferred STRING);
+COPY INTO BENEFITS_RAW FROM @linkedin_stage/benefits.csv FILE_FORMAT = (FORMAT_NAME = 'csv_format');
+
+CREATE OR REPLACE TABLE BENEFITS AS 
+SELECT TRY_TO_NUMBER(job_id) AS job_id, type, (inferred = '1') AS inferred FROM BENEFITS_RAW;
+
+--- TABLE: EMPLOYEE_COUNTS ---
+CREATE OR REPLACE TABLE EMPLOYEE_COUNTS_RAW (company_id STRING, employee_count STRING, follower_count STRING, time_recorded STRING);
+COPY INTO EMPLOYEE_COUNTS_RAW FROM @linkedin_stage/employee_counts.csv FILE_FORMAT = (FORMAT_NAME = 'csv_format');
+
+CREATE OR REPLACE TABLE EMPLOYEE_COUNTS AS 
+SELECT 
+    TRY_TO_NUMBER(company_id) AS company_id, 
+    TRY_TO_NUMBER(employee_count) AS employee_count, 
+    TRY_TO_NUMBER(follower_count) AS follower_count, 
+    TO_TIMESTAMP_NTZ(TRY_TO_NUMBER(time_recorded)) AS time_recorded 
+FROM EMPLOYEE_COUNTS_RAW;
+
+-- ==========================================================
+-- 5. TABLES JSON (VARIANT -> PARSING)
+-- ==========================================================
+
+--- TABLE: COMPANIES ---
+CREATE OR REPLACE TABLE COMPANIES_JSON_RAW (v VARIANT);
+COPY INTO COMPANIES_JSON_RAW FROM @linkedin_stage/companies.json FILE_FORMAT = (FORMAT_NAME = 'json_format');
+
+CREATE OR REPLACE TABLE COMPANIES AS
+SELECT 
+    v:company_id::NUMBER AS company_id,
+    v:name::STRING AS name,
+    v:description::STRING AS description,
+    v:company_size::STRING AS company_size,
+    v:country::STRING AS country,
+    v:city::STRING AS city,
+    v:url::STRING AS url
+FROM COMPANIES_JSON_RAW;
+
+--- TABLE: COMPANY_INDUSTRIES ---
+CREATE OR REPLACE TABLE COMPANY_INDUSTRIES_JSON_RAW (v VARIANT);
+COPY INTO COMPANY_INDUSTRIES_JSON_RAW FROM @linkedin_stage/company_industries.json FILE_FORMAT = (FORMAT_NAME = 'json_format');
+
+CREATE OR REPLACE TABLE COMPANY_INDUSTRIES AS
+SELECT v:company_id::NUMBER AS company_id, v:industry::STRING AS industry FROM COMPANY_INDUSTRIES_JSON_RAW;
+
+--- TABLE: COMPANY_SPECIALITIES ---
+CREATE OR REPLACE TABLE COMPANY_SPECIALITIES_JSON_RAW (v VARIANT);
+COPY INTO COMPANY_SPECIALITIES_JSON_RAW FROM @linkedin_stage/company_specialities.json FILE_FORMAT = (FORMAT_NAME = 'json_format');
+
+CREATE OR REPLACE TABLE COMPANY_SPECIALITIES AS
+SELECT v:company_id::NUMBER AS company_id, v:speciality::STRING AS speciality FROM COMPANY_SPECIALITIES_JSON_RAW;
+
+--- TABLE: JOB_INDUSTRIES ---
+CREATE OR REPLACE TABLE JOB_INDUSTRIES_JSON_RAW (v VARIANT);
+COPY INTO JOB_INDUSTRIES_JSON_RAW FROM @linkedin_stage/job_industries.json FILE_FORMAT = (FORMAT_NAME = 'json_format');
+
+CREATE OR REPLACE TABLE JOB_INDUSTRIES AS
+SELECT v:job_id::NUMBER AS job_id, v:industry_id::NUMBER AS industry_id FROM JOB_INDUSTRIES_JSON_RAW;
