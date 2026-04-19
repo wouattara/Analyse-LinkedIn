@@ -37,6 +37,8 @@ Une vue synthétique traduite en français pour une meilleure compréhension des
 
 #### 4. Dictionnaire Dynamique (Sidebar)
 Face à l'anonymisation des données par IDs, nous avons intégré un **moteur de recherche intelligent** en barre latérale. Cet outil permet à l'utilisateur de "décoder" instantanément n'importe quel ID technique en nom réel (Entreprise ou Industrie).
+
+
 ![Traducteur d'identifiants](https://github.com/user-attachments/assets/306ed867-a932-4083-8b65-aa1a9e9b2e28)
 
 ## ⚠️ Problèmes rencontrés & Solutions
