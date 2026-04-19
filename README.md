@@ -1,5 +1,5 @@
 # 📊 Analyse du Marché de l'Emploi LinkedIn
-**Projet réalisé par Williams Ouattara & Zoran Doer**
+**Projet réalisé par Williams Ouattara & Zoran Doerr**
 
 ## 📝 Présentation du projet
 Ce projet consiste en une analyse approfondie d'un dataset LinkedIn utilisant l'écosystème **Snowflake** pour le stockage et le traitement, et **Streamlit** pour la visualisation interactive. L'objectif est d'extraire des tendances significatives sur les salaires, les secteurs d'activité et les types de contrats.
