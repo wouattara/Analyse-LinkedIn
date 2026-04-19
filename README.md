@@ -21,7 +21,8 @@ Nous avons mis en place un pipeline de données robuste :
 ## 🎨 Visualisations Streamlit
 Le dashboard interactif permet d'explorer :
 - **Top 10 Salaires & Volumes** : Visualisation par ID de secteur pour une performance optimale.
-- 
+  <img width="1507" height="509" alt="Analyses secteurs et salaires" src="https://github.com/user-attachments/assets/f31d0859-5592-4376-af2f-744a13a6db8f" />
+
 - **Répartition par Taille** : Analyse des offres selon la dimension des entreprises.
 - **Dictionnaire Dynamique (Sidebar)** : Pour pallier l'anonymisation des données, nous avons développé un moteur de recherche en barre latérale. L'utilisateur peut saisir un **ID technique** pour afficher instantanément le **Nom de l'entreprise** ou du **Secteur**.
  
