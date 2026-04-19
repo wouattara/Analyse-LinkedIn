@@ -1,4 +1,5 @@
 # 📊 Analyse du Marché de l'Emploi LinkedIn
+![Aperçu du Dashboard](dashboard.png)
 **Projet réalisé par Williams Ouattara & Zoran Doer**
 
 ## 📝 Présentation du projet
@@ -20,8 +21,10 @@ Nous avons mis en place un pipeline de données robuste :
 ## 🎨 Visualisations Streamlit
 Le dashboard interactif permet d'explorer :
 - **Top 10 Salaires & Volumes** : Visualisation par ID de secteur pour une performance optimale.
+- 
 - **Répartition par Taille** : Analyse des offres selon la dimension des entreprises.
 - **Dictionnaire Dynamique (Sidebar)** : Pour pallier l'anonymisation des données, nous avons développé un moteur de recherche en barre latérale. L'utilisateur peut saisir un **ID technique** pour afficher instantanément le **Nom de l'entreprise** ou du **Secteur**.
+ 
 
 ## ⚠️ Problèmes rencontrés & Solutions
 | Problèmes rencontrés | Solutions apportées |
