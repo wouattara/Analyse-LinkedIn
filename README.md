@@ -1,5 +1,3 @@
-
-![Aperçu du Dashboard](dashboard.png)
 # 📊 Analyse du Marché de l'Emploi LinkedIn
 **Projet réalisé par Williams Ouattara & Zoran Doer**
 
