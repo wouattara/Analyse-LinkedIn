@@ -48,7 +48,7 @@ Face à l'anonymisation des données par IDs, nous avons intégré un **moteur d
 
 ## 👥 Répartition équitable des tâches
 - **Williams Ouattara** : Mise en place de l'environnement Snowflake, création des scripts ETL (`linkedin.sql`), nettoyage des données et logique de jointure complexe.
-- **Zoran Doer** : Développement de l'interface Streamlit (`streamlit_app.py`), conception du dictionnaire d'identifiants et rédaction de la documentation technique.
+- **Zoran Doerr** : Développement de l'interface Streamlit (`streamlit_app.py`), conception du dictionnaire d'identifiants et rédaction de la documentation technique.
 
 ---
 *Projet réalisé dans le cadre de la formation Data. Williams Ouattara & Zoran Doer.*
